@@ -1,79 +1,138 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset='utf-8'>
 
-  <title>dhotson/springy @ GitHub</title>
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="Springie : A force directed graph layout algorithm in JavaScript" />
 
-  <style type="text/css">
-    body {
-      margin-top: 1.0em;
-      background-color: #ffffff;
-      font-family: Helvetica, Arial, FreeSans, san-serif;
-      color: #000000;
-    }
-    #container {
-      margin: 0 auto;
-      width: 700px;
-    }
-    h1 { font-size: 3.8em; color: #996666; margin-bottom: 3px; }
-    h1 .small { font-size: 0.4em; }
-    h1 a { text-decoration: none }
-    h2 { font-size: 1.5em; color: #996666; }
-    h3 { text-align: center; color: #996666; }
-    a { color: #996666; }
-    .description { font-size: 1.2em; margin-bottom: 30px; margin-top: 30px; font-style: italic;}
-    .download { float: right; }
-    pre { background: #000; color: #fff; padding: 15px;}
-    hr { border: 0; width: 80%; border-bottom: 1px solid #aaa}
-    .footer { text-align:center; padding-top:30px; font-style: italic; }
-  </style>
-</head>
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
 
-<body>
-  <a href="http://github.com/dhotson/springy"><img style="position: absolute; top: 0; right: 0; border: 0;" src="http://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub" /></a>
+    <title>Springie</title>
+  </head>
 
-  <div id="container">
+  <body>
 
-    <div class="download">
-      <a href="http://github.com/dhotson/springy/zipball/master">
-        <img border="0" width="90" src="http://github.com/images/modules/download/zip.png"></a>
-      <a href="http://github.com/dhotson/springy/tarball/master">
-        <img border="0" width="90" src="http://github.com/images/modules/download/tar.png"></a>
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/entagen/springie">View on GitHub</a>
+
+          <h1 id="project_title">Springie</h1>
+          <h2 id="project_tagline">A force directed graph layout algorithm in JavaScript</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/entagen/springie/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/entagen/springie/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
     </div>
 
-    <h1><a href="http://github.com/dhotson/springy">springy</a>
-      <span class="small">by <a href="http://github.com/dhotson">dhotson</a></span></h1>
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>Springie</h1>
 
-    <div class="description">
-      A force directed graph layout algorithm in JavaScript
-    </div>
+<p>A force directed graph layout algorithm in JavaScript. Adapted from <a href="https://github.com/dhotson/springy">https://github.com/dhotson/springy</a> but including support for IE8+. Even though we've named the project "Springie" to indicate "IE" support, we've retained the original file names of "springy.js" and "springyui.js" so as to be a simple drop in fix of your current files. </p>
 
-    <h2>License</h2>
+<h2>What is this?</h2>
+
+<p>Springie is a force directed graph layout algorithm.</p>
+
+<p>So what does this 'force directed' stuff mean anyway? Excellent question!</p>
+
+<p>It basically means that it uses some real world physics to try and
+figure out how to show a network graph in a nice way.</p>
+
+<p>Try to imagine it as a bunch of springs connected to each other.</p>
+
+<h2>Demo</h2>
+
+<p><a href="http://entagen.github.com/springie/demo.html">Canvas based</a> (IE9, Chrome, FireFox, Safari, etc)</p>
+
+<p><a href="http://entagen.github.com/springie/demo-raphael.html">Raphael/SVG based</a> (IE6+, Chrome, FireFox, Safari, etc)</p>
+
+<h2>Basic Usage</h2>
+
+<p>springy.js by itself is quite plain and doesn't include any code to do rendering
+or drag and drop etc. It's just for calculating the layout.</p>
+
+<p>The drawing and interaction stuff is mostly up to you.</p>
+
+<p>However, we've provided springyui.js to help get you started. It has a semi-decent default renderer and some half assed drag and drop.</p>
+
+<p>See demo.html and springyui.js for an example of usage.</p>
+
+<h2>Advanced Usage</h2>
+
+<p>If you're keen to do your own custom drawing, you'll need to know a few
+things before you get started.</p>
+
+<p>This is the basic graph API, you can create nodes and edges etc.</p>
+
+<pre><code>// make a new graph
+var graph = new Graph();
+
+// make some nodes
+var node1 = graph.newNode({label: '1'});
+var node2 = graph.newNode({label: '2'});
+
+// connect them with an edge
+graph.newEdge(node1, node2);
+</code></pre>
+
+<p>So now to draw this graph, lets make a layout object:</p>
+
+<pre><code>var layout = new Layout.ForceDirected(graph, 400.0, 400.0, 0.5);
+</code></pre>
+
+<p>I've written a Renderer class, which will handle the rendering loop.
+You just need to provide some callbacks to do the actual drawing.</p>
+
+<pre><code>var renderer = new Renderer(10, layout,
+  function clear() {
+    // code to clear screen
+  },
+  function drawEdge(edge, p1, p2) {
+    // draw an edge
+  },
+  function drawNode(node, p) {
+    // draw a node
+  }
+);
+</code></pre>
+
+<p>Now, just start the rendering loop:</p>
+
+<pre><code>renderer.start();
+</code></pre>
+
+<h2>Further Reading</h2>
+
+<p>Have a look at the code in springy.js.
+Seriously, it's not very much code and it should be pretty easy to understand.</p>
+
+<p>Please let me know if anything is unclear. Feedback is welcome.</p>
+
+<h2>License</h2>
+
 <p>MIT</p>
-<h2>Author</h2>
-<p>Dennis Hotson (dennis.hotson@gmail.com)<br/>      </p>
-<h2>Contact</h2>
-<p>Dennis Hotson (dennis.hotson@gmail.com)<br/>      </p>
 
+<h2>Acknowledgements</h2>
 
-    <h2>Download</h2>
-    <p>
-      You can download this project in either
-      <a href="http://github.com/dhotson/springy/zipball/master">zip</a> or
-      <a href="http://github.com/dhotson/springy/tarball/master">tar</a> formats.
-    </p>
-    <p>You can also clone the project with <a href="http://git-scm.com">Git</a>
-      by running:
-      <pre>$ git clone git://github.com/dhotson/springy</pre>
-    </p>
-
-    <div class="footer">
-      get the source code on GitHub : <a href="http://github.com/dhotson/springy">dhotson/springy</a>
+<p><a href="http://dhotson.github.com/">@dhotson</a> (original author) and everyone involved with the original <a href="https://github.com/dhotson/springy">Springy</a> project.<br><a href="https://github.com/zcourts">@zcourts</a> for providing a fix for versions older than IE9 </p>
+      </section>
     </div>
 
-  </div>
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Springie maintained by <a href="https://github.com/entagen">entagen</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
 
-  
-</body>
+    
+
+  </body>
 </html>
