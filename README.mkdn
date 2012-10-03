@@ -1,12 +1,12 @@
-Springy
+Springie
 ====
 
-A force directed graph layout algorithm in JavaScript.
+A force directed graph layout algorithm in JavaScript. Adapted from https://github.com/dhotson/springy but including support for IE8+. Even though we've named the project "Springie" to indicate "IE" support, we've retained the original file names of "springy.js" and "springyui.js" so as to be a simple drop in fix of your current files. 
 
 What is this?
 ----
 
-Springy is a force directed graph layout algorithm.
+Springie is a force directed graph layout algorithm.
 
 So what does this 'force directed' stuff mean anyway? Excellent question!
 
@@ -19,8 +19,9 @@ Try to imagine it as a bunch of springs connected to each other.
 Demo
 ----
 
-[demo](http://dhotson.github.com/springy/demo.html)
+[Canvas based](http://entagen.github.com/springie/demo.html) (IE9, Chrome, FireFox, Safari, etc)
 
+[Raphael/SVG based](http://entagen.github.com/springie/demo-raphael.html) (IE6+, Chrome, FireFox, Safari, etc)
 
 Basic Usage
 ----
@@ -30,9 +31,7 @@ or drag and drop etc. It's just for calculating the layout.
 
 The drawing and interaction stuff is mostly up to you.
 
-However, I've written a little helper jQuery plugin called springyui.js
-to help get you started. It's got a semi-decent default renderer and some
-half assed drag and drop.
+However, we've provided springyui.js to help get you started. It has a semi-decent default renderer and some half assed drag and drop.
 
 See demo.html and springyui.js for an example of usage.
 
@@ -91,5 +90,4 @@ Please let me know if anything is unclear. Feedback is welcome.
 Acknowledgements
 ----
 
-Thanks to [Lachlan Donald](http://github.com/lox) for his helpful suggestions and
-feedback.
+@dhotson and everyone involved with the original [Springy](https://github.com/dhotson/springy) project and @zcourts for providing an IE fix. 
