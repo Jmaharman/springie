@@ -25,7 +25,14 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+(function() {
+
+var root = this;
+
+var Springy = root.Springy = {};
+
 //https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Array/forEach
+// TODO: Maybe an add a dependency to underscore or just set it as a function rather than adding to prototype?
 if ( !Array.prototype.forEach ) {
   Array.prototype.forEach = function( callback, thisArg ) {
     var T, k;
@@ -52,7 +59,7 @@ if ( !Array.prototype.forEach ) {
   };
 }
 
-var Graph = function() {
+var Graph = Springy.Graph = function() {
 	this.nodeSet = {};
 	this.nodes = [];
 	this.edges = [];
@@ -63,12 +70,12 @@ var Graph = function() {
 	this.eventListeners = [];
 };
 
-var Node = function(id, data) {
+var Node = Springy.Node = function(id, data) {
 	this.id = id;
 	this.data = typeof(data) !== 'undefined' ? data : {};
 };
 
-var Edge = function(id, source, target, data) {
+var Edge = Springy.Edge = function(id, source, target, data) {
 	this.id = id;
 	this.source = source;
 	this.target = target;
@@ -251,7 +258,7 @@ Graph.prototype.notify = function() {
 };
 
 // -----------
-var Layout = {};
+var Layout = Springy.Layout = {};
 Layout.ForceDirected = function(graph, stiffness, repulsion, damping) {
 	this.graph = graph;
 	this.stiffness = stiffness; // spring stiffness constant
@@ -480,7 +487,7 @@ Layout.ForceDirected.prototype.getBoundingBox = function() {
 
 
 // Vector
-Vector = function(x, y) {
+Vector = Springy.Vector = function(x, y) {
 	this.x = x;
 	this.y = y;
 };
@@ -547,7 +554,7 @@ Layout.ForceDirected.Spring = function(point1, point2, length, k) {
 // };
 
 // Renderer handles the layout rendering loop
-function Renderer(interval, layout, clear, drawEdge, drawNode) {
+var Renderer = Springy.Renderer = function(interval, layout, clear, drawEdge, drawNode) {
 	this.interval = interval;
 	this.layout = layout;
 	this.clear = clear;
@@ -576,3 +583,4 @@ Renderer.prototype.start = function() {
 	});
 };
 
+}).call(this);
