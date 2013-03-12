@@ -139,10 +139,12 @@ var Layout = Springy.Layout,
 	Renderer = Springy.Renderer,
 	Vector = Springy.Vector;
 
-function renderGraph(holderId, canvasWidth, canvasHeight, graph) {
+function renderGraph(element, canvasWidth, canvasHeight, graph) {
+    if (canvasWidth === 0 || canvasHeight === 0 ) alert('Please provide a height and width that are greater than 0.');
+
     var layout = new Layout.ForceDirected(graph, canvasWidth, canvasHeight, 0.5);
 
-    var r = Raphael(holderId, canvasWidth, canvasHeight);
+    var r = Raphael(element.id, canvasWidth, canvasHeight);
 
 	// calculate bounding box of graph layout.. with ease-in
 	var currentBB = layout.getBoundingBox();
@@ -183,33 +185,24 @@ function renderGraph(holderId, canvasWidth, canvasHeight, graph) {
 	var dragged = null;
 
 	var dragMove = function(dx, dy, x, y, e) {
-		var pos = jQuery('#' + holderId).offset();
+		var pos = $(element).offset();
 		var p = fromScreen({x: e.pageX - pos.left, y: e.pageY - pos.top});
-		nearest = layout.nearest(p);
+        var nodePoint = layout.point(this);
 
-		if (dragged !== null && dragged.node !== null) {
-			dragged.point.p.x = p.x;
-			dragged.point.p.y = p.y;
-		}
+		nodePoint.p.x = p.x;
+        nodePoint.p.y = p.y;
 
 		renderer.start();
 	};
 
 	var dragStart = function(x, y, e) {
-		var pos = jQuery('#' + holderId).offset();
-		var p = fromScreen({x: e.pageX - pos.left, y: e.pageY - pos.top});
-		selected = nearest = dragged = layout.nearest(p);
-
-		if (selected.node !== null) {
-			// Part of the same bug mentioned later. Store the previous mass
-			// before upscaling it for dragging.
-			dragged.point.m = 10000.0;
-		}
+		var nodePoint = layout.point(this);
+        nodePoint.m = 10000.0;
 
 		renderer.start();
 	};
 
-	var dragEnd = function() {};
+	var dragDummy = function() {};
 
     var renderer = new Renderer(10, layout,
         function clear() {
@@ -237,7 +230,7 @@ function renderGraph(holderId, canvasWidth, canvasHeight, graph) {
 
             if (!node.shape) {
                 node.shape = r.label(node.data['label']);
-                node.shape.drag(dragMove, dragStart, dragEnd, node, node, node);
+                node.shape.drag(dragMove, dragStart, dragDummy, node, node, node);
                 node.shape.node = node;
             }
             shape = node.shape;
