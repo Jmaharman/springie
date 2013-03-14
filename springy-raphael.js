@@ -1,4 +1,4 @@
-define(['springy', 'raphael-amd'], function(Springy, Raphael) {
+define(['springy', 'raphael-amd', 'backbone', 'underscore'], function(Springy, Raphael, Backbone, _) {
 
 /**
  * Originally grabbed from the official RaphaelJS Documentation
@@ -101,7 +101,7 @@ Raphael.fn.connection = function (obj1, obj2, style) {
             style && style.label && style["label-style"] && edge.label && edge.label.attr(style["label-style"]);
             style && style.callback && style.callback(edge);
         }
-    }
+    };
     edge.draw();
     return edge;
 };
@@ -136,114 +136,158 @@ function moveSet(set, x, y) {
 }
 
 var Layout = Springy.Layout,
+    Graph = Springy.Graph,
 	Renderer = Springy.Renderer,
 	Vector = Springy.Vector;
 
-function renderGraph(element, canvasWidth, canvasHeight, graph) {
-    if (canvasWidth === 0 || canvasHeight === 0 ) alert('Please provide a height and width that are greater than 0.');
+return Backbone.View.extend({
 
-    var layout = new Layout.ForceDirected(graph, canvasWidth, canvasHeight, 0.5);
+    initialize: function(options) {
+        this.canvasHeight = options.canvasHeight;
+        this.canvasWidth = options.canvasWidth;
 
-    var r = Raphael(element.id, canvasWidth, canvasHeight);
+        if ( this.canvasWidth === 0 || this.canvasHeight === 0 ) alert('Please provide a height and width that are greater than 0.');
 
-	// calculate bounding box of graph layout.. with ease-in
-	var currentBB = layout.getBoundingBox();
-	var targetBB = {bottomleft: new Vector(-2, -2), topright: new Vector(2, 2)};
+        _.bindAll(this, 'adjustRenderFrame', 'drawNode', 'drawEdge');
 
-	// auto adjusting bounding box
-	Layout.requestAnimationFrame(function adjust() {
-		targetBB = layout.getBoundingBox();
-		// current gets 20% closer to target every iteration
-		currentBB = {
-			bottomleft: currentBB.bottomleft.add( targetBB.bottomleft.subtract(currentBB.bottomleft)
-				.divide(10)),
-			topright: currentBB.topright.add( targetBB.topright.subtract(currentBB.topright)
-				.divide(10))
-		};
+        this.graph = new Springy.Graph();
+        this.layout = new Layout.ForceDirected(this.graph, this.canvasWidth, this.canvasHeight, 0.1);
 
-		Layout.requestAnimationFrame(adjust);
-	});
+        this.r = Raphael(this.el.id, this.canvasWidth, this.canvasHeight);
+        this.nodes = {};
+        this.relationships = {};
+        this.colourTypes = {
+            APPOINTMENT: '#00A0B0',
+            PARENT_COMPANY: '#6A4A3C'
+        };
 
-	// convert to/from screen coordinates
-	var toScreen = function(p) {
-		var size = currentBB.topright.subtract(currentBB.bottomleft);
-		var sx = p.subtract(currentBB.bottomleft).divide(size.x).x * r.width;
-		var sy = p.subtract(currentBB.bottomleft).divide(size.y).y * r.height;
-		return new Vector(sx, sy);
-	};
+        // calculate bounding box of graph layout.. with ease-in
+        this.currentBB = this.layout.getBoundingBox();
+        this.targetBB = { bottomleft: new Vector(-2, -2), topright: new Vector(2, 2) };
 
-	var fromScreen = function(s) {
-		var size = currentBB.topright.subtract(currentBB.bottomleft);
-		var px = (s.x / canvasWidth) * size.x + currentBB.bottomleft.x;
-		var py = (s.y / canvasHeight) * size.y + currentBB.bottomleft.y;
+        // auto adjusting bounding box
+        Layout.requestAnimationFrame(this.adjustRenderFrame);
 
-		return new Vector(px, py);
-	};
+        this.renderer = new Renderer(10, this.layout, this.clear, this.drawEdge, this.drawNode);
+    },
 
-	var selected = null;
-	var nearest = null;
-	var dragged = null;
+    addGraph: function(nodes, relationships) {
+        var view = this;
+        _.each(nodes, function(node) {
+            var nodeId = node.data.companyId ? node.data.companyId : node.data.personId;
 
-	var dragMove = function(dx, dy, x, y, e) {
-		var pos = $(element).offset();
-		var p = fromScreen({x: e.pageX - pos.left, y: e.pageY - pos.top});
-        var nodePoint = layout.point(this);
+            if (view.nodes[nodeId]) return;
 
-		nodePoint.p.x = p.x;
-        nodePoint.p.y = p.y;
-
-		renderer.start();
-	};
-
-	var dragStart = function(x, y, e) {
-		var nodePoint = layout.point(this);
-        nodePoint.m = 10000.0;
-
-		renderer.start();
-	};
-
-	var dragDummy = function() {};
-
-    var renderer = new Renderer(10, layout,
-        function clear() {
-            // code to clear screen
-        },
-        function drawEdge(edge, p1, p2) {
-            var connection;
-
-            if (!edge.connection) {
-
-                if (!edge.source.shape || !edge.target.shape)
-                    return;
-
-                connection = r.connection(edge.source.shape, edge.target.shape, {stroke: edge.data['color']});
-                edge.connection = connection;
-
-            } else {
-                edge.connection.draw();
-            }
-
-        },
-        function drawNode(node, p) {
-
-            var shape;
-
-            if (!node.shape) {
-                node.shape = r.label(node.data['label']);
-                node.shape.drag(dragMove, dragStart, dragDummy, node, node, node);
-                node.shape.node = node;
-            }
-            shape = node.shape;
-
-            s = toScreen(p);
-            moveSet(shape, Math.floor(s.x), Math.floor(s.y));
-
+            var springyNode = view.graph.newNode({label: node.data.name});
+            view.nodes[nodeId] = {
+                rest: node,
+                graph: springyNode
+            };
         });
 
-    renderer.start();
+        _.each(relationships, function(relationship) {
+            var relationshipId = relationship.start + relationship.type + relationship.end;
 
-}
+            if (view.relationships[relationshipId]) return;
 
-return renderGraph;
+            view.relationships[relationshipId] = view.graph.newEdge(view.nodes[relationship.start].graph, view.nodes[relationship.end].graph,
+                    {
+                        color: view.colourTypes[relationship.type],
+                        label: relationship.type
+                    });
+        });
+
+        this.renderer.start();
+    },
+
+    dragMove: function(dx, dy, x, y, e, node) {
+        var pos = this.$el.offset();
+        var p = this.fromScreen({x: e.pageX - pos.left, y: e.pageY - pos.top});
+        var nodePoint = this.layout.point(node);
+
+        nodePoint.p.x = p.x;
+        nodePoint.p.y = p.y;
+
+        this.renderer.start();
+    },
+
+    dragStart: function(x, y, e, node) {
+        var nodePoint = this.layout.point(node);
+        //nodePoint.m = 10000.0;
+
+        this.renderer.start();
+    },
+
+    fromScreen: function(s) {
+        var size = this.currentBB.topright.subtract(this.currentBB.bottomleft);
+        var px = (s.x / this.canvasWidth) * size.x + this.currentBB.bottomleft.x;
+        var py = (s.y / this.canvasHeight) * size.y + this.currentBB.bottomleft.y;
+
+        return new Vector(px, py);
+    },
+
+    toScreen: function(p) {
+        var size = this.currentBB.topright.subtract(this.currentBB.bottomleft);
+        var sx = p.subtract(this.currentBB.bottomleft).divide(size.x).x * this.r.width;
+        var sy = p.subtract(this.currentBB.bottomleft).divide(size.y).y * this.r.height;
+        return new Vector(sx, sy);
+    },
+
+    adjustRenderFrame: function() {
+        this.targetBB = this.layout.getBoundingBox();
+        // current gets 20% closer to target every iteration
+        this.currentBB = {
+            bottomleft: this.currentBB.bottomleft.add( this.targetBB.bottomleft.subtract(this.currentBB.bottomleft)
+                .divide(10)),
+            topright: this.currentBB.topright.add( this.targetBB.topright.subtract(this.currentBB.topright)
+                .divide(10))
+        };
+
+        Layout.requestAnimationFrame(this.adjustRenderFrame);
+    },
+
+    clear: function() {
+        // code to clear screen
+    },
+
+    drawEdge: function(edge, p1, p2) {
+        var connection;
+
+        if (!edge.connection) {
+
+            if (!edge.source.shape || !edge.target.shape)
+                return;
+
+            connection = this.r.connection(edge.source.shape, edge.target.shape, {stroke: edge.data['color']});
+            edge.connection = connection;
+
+        } else {
+            edge.connection.draw();
+        }
+    },
+
+    drawNode: function(node, p) {
+        var shape;
+
+        if (!node.shape) {
+            node.shape = this.r.label(node.data['label']);
+
+            node.shape.drag(this.additionalParameters(this.dragMove, node), this.additionalParameters(this.dragStart, node), this.clear, this, this, this);
+            node.shape.node = node;
+        }
+        shape = node.shape;
+
+        s = this.toScreen(p);
+        moveSet(shape, Math.floor(s.x), Math.floor(s.y));
+    },
+
+    additionalParameters: function(func) {
+        var args = Array.prototype.splice.call(arguments, 1);
+        return function() {
+            func.apply(this, Array.prototype.splice.call(arguments, 0).concat(args));
+        };
+    }
+
+});
 
 });
