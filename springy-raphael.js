@@ -115,9 +115,14 @@ Raphael.fn.label = function(str) {
     var shape = this.rect(0, 0, 60, 30, 10);
     shape.attr({fill: '#ffffff', stroke: color, "fill-opacity": 0, "stroke-width": 2, cursor: "move"}).setOffset();
 
-    var text = this.text(30, 15, str).attr({'font-size': 15, cursor: "move"}).setOffset();
+    var text = this.text(30, 15, str).attr({'font-size': 15, cursor: "move"});
+    text.setOffset();
 
-    return this.setFinish();
+    var set = this.setFinish();
+
+    shape.set = set;
+    text.set = set;
+    return set;
 
 };
 
@@ -148,7 +153,7 @@ return Backbone.View.extend({
 
         if ( this.canvasWidth === 0 || this.canvasHeight === 0 ) alert('Please provide a height and width that are greater than 0.');
 
-        _.bindAll(this, 'adjustRenderFrame', 'drawNode', 'drawEdge');
+        _.bindAll(this, 'adjustRenderFrame', 'drawNode', 'drawEdge', 'click', 'dblclick');
 
         this.graph = new Springy.Graph();
         this.layout = new Layout.ForceDirected(this.graph, this.canvasWidth, this.canvasHeight, 0.1);
@@ -158,7 +163,8 @@ return Backbone.View.extend({
         this.relationships = {};
         this.colourTypes = {
             APPOINTMENT: '#00A0B0',
-            PARENT_COMPANY: '#6A4A3C'
+            PARENT_COMPANY: '#6A4A3C',
+            WATCHING: '#6A4A3C'
         };
 
         // calculate bounding box of graph layout.. with ease-in
@@ -171,14 +177,24 @@ return Backbone.View.extend({
         this.renderer = new Renderer(10, this.layout, this.clear, this.drawEdge, this.drawNode);
     },
 
+    click: function(e, x, y, node) {
+        this.trigger('click', e, this.nodes[node.restId].rest);
+    },
+
+    dblclick: function(e) {
+        this.trigger('dblclick', e);
+    },
+
     addGraph: function(nodes, relationships) {
         var view = this;
         _.each(nodes, function(node) {
-            var nodeId = node.data.companyId ? node.data.companyId : node.data.personId;
+            // TODO: Sort out this hacky crap!
+            var nodeId = node.data.companyId ? node.data.companyId : node.data.personId ? node.data.personId : node.data.groupId ? node.data.groupId : node.data.watchlistId;
 
             if (view.nodes[nodeId]) return;
 
             var springyNode = view.graph.newNode({label: node.data.name});
+            springyNode.restId = nodeId;
             view.nodes[nodeId] = {
                 rest: node,
                 graph: springyNode
@@ -272,7 +288,10 @@ return Backbone.View.extend({
         if (!node.shape) {
             node.shape = this.r.label(node.data['label']);
 
+            console.log(node);
             node.shape.drag(this.additionalParameters(this.dragMove, node), this.additionalParameters(this.dragStart, node), this.clear, this, this, this);
+            node.shape.click(this.additionalParameters(this.click, node));
+            /*node.shape.dblclick(this.dblclick);*/
             node.shape.node = node;
         }
         shape = node.shape;
@@ -287,7 +306,6 @@ return Backbone.View.extend({
             func.apply(this, Array.prototype.splice.call(arguments, 0).concat(args));
         };
     }
-
 });
 
 });
