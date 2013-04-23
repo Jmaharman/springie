@@ -106,17 +106,101 @@ Raphael.fn.connection = function (obj1, obj2, style) {
     return edge;
 };
 
-Raphael.fn.label = function(str) {
+Raphael.fn.arrowSet = function (x1, y1, x2, y2, r) {
+    var paper = this,
+        arrow = paper.set();
+    arrow.push(paper.path(triangle(x2, y2 - (r / 2), r)).rotate(((Math.atan2(x1 - x2, y2 - y1) / (2 * Math.PI)) * 360) + 180, x2, y2));
+    arrow.push(paper.path(["M", x1, y1, "L", x2, y2]));
+    return arrow;
+};
 
-    var color = Raphael.getColor();
+Raphael.fn.arrowConnection = function (source, target, r, color) {
+    var paper = this,
+        arrow = paper.set();
+
+    var sourceBB = source.shape.getBBox();
+    var targetBB = target.shape.getBBox();
+
+    var shape1 = {
+            x: sourceBB.x + sourceBB.width / 2,
+            y: sourceBB.y + sourceBB.height / 2
+        },
+        shape2 = {
+            x: targetBB.x + targetBB.width / 2,
+            y: targetBB.y + targetBB.height / 2
+        },
+        retractIncrement = 5,
+        incrementY = retractIncrement,
+        incrementX = retractIncrement,
+        arrowAngle = ((Math.atan2(shape1.x - shape2.x, shape2.y - shape1.y) / (2 * Math.PI)) * 360) + 180;
+
+    if (arrowAngle < 90 || arrowAngle > 270)
+        incrementY = -retractIncrement;
+
+    if (arrowAngle > 180)
+        incrementX = -retractIncrement;
+
+    while (Raphael.isPointInsideBBox(sourceBB, shape1.x, shape1.y)) {
+        shape1.y = shape1.y + incrementY;
+        shape1.x = shape1.x + incrementX;
+    }
+
+    targetBB.x -= 5;
+    targetBB.y -= 5;
+    targetBB.x2 += 5;
+    targetBB.y2 += 5;
+    targetBB.height += 10;
+    targetBB.width += 10;
+
+    while (Raphael.isPointInsideBBox(targetBB, shape2.x, shape2.y)) {
+        shape2.y = shape2.y - incrementY;
+        shape2.x = shape2.x - incrementX;
+    }
+
+    arrow.push(paper.path(triangle(shape2.x, shape2.y - (r / 2), r))
+                    .rotate(((Math.atan2(shape1.x - shape2.x, shape2.y - shape1.y) / (2 * Math.PI)) * 360) + 180, shape2.x, shape2.y)
+                    .attr({
+                        'stroke-width': '2',
+                        'stroke': color,
+                        'fill': color
+                    }));
+    arrow.push(paper.path(["M", shape1.x, shape1.y, "L", shape2.x, shape2.y])
+                    .attr({
+                        'stroke-width': '2',
+                        'stroke': color
+                    }));
+
+    return arrow;
+};
+
+/**
+* Triangle path string
+* Adapted from raphael.primitives.js
+* For more info visit: https://github.com/DmitryBaranovskiy/raphael
+*/
+function triangle (cx, cy, r) {
+    r *= 1.75;
+    return "M".concat(cx, ",", cy, "m0-", r * 0.58, "l", r * 0.5, ",", r * 0.87, "-", r, ",0z");
+}
+
+Raphael.fn.label = function(str, color) {
+
+    if (!color)
+        color = Raphael.getColor();
 
     this.setStart();
 
-    var shape = this.rect(0, 0, 60, 30, 10);
-    shape.attr({fill: '#ffffff', stroke: color, "fill-opacity": 0, "stroke-width": 2, cursor: "move"}).setOffset();
-
-    var text = this.text(30, 15, str).attr({'font-size': 15, cursor: "move"});
+    var text = this.text(0, 0, str).attr({fill: '#ffffff', 'font-size': 15, cursor: "move"});
     text.setOffset();
+    var bb = text.getBBox();
+
+    var nodeWidth = bb.width+20;
+    var nodeHeight = bb.height+10;
+
+    var shape = this.rect(-nodeWidth/2, -nodeHeight/2, nodeWidth, nodeHeight, 5);
+    shape.attr({fill: color, stroke: color, cursor: "move"}).setOffset();
+
+    text.toFront();
 
     var set = this.setFinish();
 
@@ -142,8 +226,8 @@ function moveSet(set, x, y) {
 
 var Layout = Springy.Layout,
     Graph = Springy.Graph,
-	Renderer = Springy.Renderer,
-	Vector = Springy.Vector;
+    Renderer = Springy.Renderer,
+    Vector = Springy.Vector;
 
 return Backbone.View.extend({
 
@@ -156,20 +240,20 @@ return Backbone.View.extend({
         _.bindAll(this, 'adjustRenderFrame', 'drawNode', 'drawEdge', 'click', 'dblclick');
 
         this.graph = new Springy.Graph();
-        this.layout = new Layout.ForceDirected(this.graph, this.canvasWidth, this.canvasHeight, 0.1);
+        this.layout = new Layout.ForceDirected(this.graph, this.canvasWidth, this.canvasHeight, 0.5);
 
         this.r = Raphael(this.el.id, this.canvasWidth, this.canvasHeight);
         this.nodes = {};
         this.relationships = {};
         this.colourTypes = {
-            APPOINTMENT: '#00A0B0',
-            PARENT_COMPANY: '#6A4A3C',
-            WATCHING: '#6A4A3C'
+            PARENT_COMPANY: '#08464C',
+            ROOT: '#7c120d',
+            COMPANY: '#0A6014'
         };
 
         // calculate bounding box of graph layout.. with ease-in
         this.currentBB = this.layout.getBoundingBox();
-        this.targetBB = { bottomleft: new Vector(-2, -2), topright: new Vector(2, 2) };
+        this.targetBB = { bottomleft: new Vector(0, 0), topright: new Vector(0, 0) };
 
         // auto adjusting bounding box
         Layout.requestAnimationFrame(this.adjustRenderFrame);
@@ -178,39 +262,24 @@ return Backbone.View.extend({
     },
 
     click: function(e, x, y, node) {
-        this.trigger('click', e, this.nodes[node.restId].rest);
+        //this.trigger('click', e, this.nodes[node.restId].rest);
     },
 
     dblclick: function(e) {
-        this.trigger('dblclick', e);
+        //this.trigger('dblclick', e);
     },
 
-    addGraph: function(nodes, relationships) {
-        var view = this;
-        _.each(nodes, function(node) {
-            // TODO: Sort out this hacky crap!
-            var nodeId = node.data.companyId ? node.data.companyId : node.data.personId ? node.data.personId : node.data.groupId ? node.data.groupId : node.data.watchlistId;
+    addGraph: function(companyName, companyStructure) {
 
-            if (view.nodes[nodeId]) return;
+        var view = this,
+            root = view.graph.newNode({label: companyName, color: this.colourTypes.ROOT }),
+            companyNode,
+            companyColour;
 
-            var springyNode = view.graph.newNode({label: node.data.name});
-            springyNode.restId = nodeId;
-            view.nodes[nodeId] = {
-                rest: node,
-                graph: springyNode
-            };
-        });
-
-        _.each(relationships, function(relationship) {
-            var relationshipId = relationship.start + relationship.type + relationship.end;
-
-            if (view.relationships[relationshipId]) return;
-
-            view.relationships[relationshipId] = view.graph.newEdge(view.nodes[relationship.start].graph, view.nodes[relationship.end].graph,
-                    {
-                        color: view.colourTypes[relationship.type],
-                        label: relationship.type
-                    });
+        _.each(companyStructure, function(companyDeets) {
+            companyColour = companyDeets.relationship.toLowerCase() == 'subsidary' ? view.colourTypes.COMPANY : view.colourTypes.PARENT_COMPANY;
+            companyNode = view.graph.newNode({label: companyDeets.name, color: companyColour });
+            view.graph.newEdge(root, companyNode, { label: companyDeets.relationship, color: companyColour });
         });
 
         this.renderer.start();
@@ -267,28 +336,21 @@ return Backbone.View.extend({
     },
 
     drawEdge: function(edge, p1, p2) {
-        var connection;
+        if (!edge.source.shape || !edge.target.shape)
+            return;
 
-        if (!edge.connection) {
+        if (edge.arrowConnection)
+            edge.arrowConnection.remove();
 
-            if (!edge.source.shape || !edge.target.shape)
-                return;
-
-            connection = this.r.connection(edge.source.shape, edge.target.shape, {stroke: edge.data['color']});
-            edge.connection = connection;
-
-        } else {
-            edge.connection.draw();
-        }
+        edge.arrowConnection = this.r.arrowConnection(edge.source, edge.target, 5, edge.data['color']);
     },
 
     drawNode: function(node, p) {
         var shape;
 
         if (!node.shape) {
-            node.shape = this.r.label(node.data['label']);
+            node.shape = this.r.label(node.data['label'], node.data['color']);
 
-            console.log(node);
             node.shape.drag(this.additionalParameters(this.dragMove, node), this.additionalParameters(this.dragStart, node), this.clear, this, this, this);
             node.shape.click(this.additionalParameters(this.click, node));
             /*node.shape.dblclick(this.dblclick);*/
